@@ -21,7 +21,6 @@ from kivy.clock import Clock
 from kivy.graphics import Rotate, PushMatrix, PopMatrix
 from kivy.uix.camera import Camera
 from kivy.core.text import LabelBase
-from sklearn.preprocessing import StandardScaler
 import pickle
 from androidstorage4kivy import SharedStorage, Chooser
 from android_permissions import AndroidPermissions
@@ -136,18 +135,14 @@ class ProcessScreen(Screen):
         cv2.imwrite('contour_point_simple.jpg', image_copy)
 
         image_features = self.create_features(closing)
-        ss = StandardScaler()
         # run this on our feature matrix
         ok=image_features.reshape(1, -1)
-        print(image_features.shape)
-        bees_stand = ss.fit_transform(ok)
-
-        gum_pca = ss.fit_transform(bees_stand)
-        loaded_model = pickle.load(open("finalized_model.sav", 'rb'))
-
-        predict=loaded_model.predict(gum_pca)
-        print(predict)
-        self.parent.get_screen('dpimage').start(contourlength,predict[0],self.filename)
+        
+        loaded_model = pickle.load(open("gingi_model.pkl", 'rb'))
+        #print(closing)
+        
+        predicts=loaded_model.predict(ok)
+        self.parent.get_screen('dpimage').start(self.contourlength,predicts[0],self.filename)
         self.manager.current = "dpimage"
 
     def create_features(self,img):

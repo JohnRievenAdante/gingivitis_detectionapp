@@ -256,7 +256,7 @@ class CameraScreen(Screen):
         cv2.imwrite('contour_point_simple.jpg', img)
         camera.play=False
         self.remove_widget(self.camera)
-        self.parent.get_screen('process').start("IMG_{}.png".format(timestr))
+        self.parent.get_screen('process').start("img_taken.png")
         
         self.manager.current = "process"
 

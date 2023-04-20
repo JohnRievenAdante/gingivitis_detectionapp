@@ -1,5 +1,57 @@
 from kivymd.uix.label import MDLabel
+-----------------------------------------------------------------------------------------------  
+import cv2
+# Load the TensorFlow Lite model
+interpreter = tf.lite.Interpreter(model_path='svm_model.tflite')
+interpreter.allocate_tensors()
 
+img2 = cv2.imread("./dataset/train_img/raw_img/intragingi2.jpg")
+img3 = cv2.resize(img2, (256,256))
+cv2.imwrite('./dataset/train_img/raw_img/intragingi2.jpg',img3)
+img4 = cv2.imread("./dataset/train_img/raw_img/intragingi2.jpg")
+ORANGE_MIN = np.array([5, 145, 94],np.uint8)
+ORANGE_MAX = np.array([8, 255, 255],np.uint8)
+#img=cv2.rotate(img3, cv2.ROTATE_90_COUNTERCLOCKWISE)
+hsv_img = cv2.cvtColor(img4,cv2.COLOR_BGR2HSV)
+
+
+
+frame_threshed = cv2.inRange(hsv_img, ORANGE_MIN, ORANGE_MAX)
+
+
+
+kernel = np.ones((10, 10), np.uint8)
+closing = cv2.morphologyEx(frame_threshed, cv2.MORPH_CLOSE, kernel, iterations=1)
+opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, kernel)
+color_features = opening.flatten()
+flat_features = np.hstack(color_features)
+ok=flat_features.reshape(1, -1)
+
+# Get the input and output tensors
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
+#print(output_details[0])
+#print(ok.astype(np.float32))
+
+# Define a new input for prediction
+
+
+# Set the input tensor
+interpreter.set_tensor(input_details[0]['index'], ok.astype(np.float32))
+
+# Run the inference
+interpreter.invoke()
+
+# Get the output tensor and print the prediction
+output_data = interpreter.get_tensor(output_details[0]['index'])
+if output_data<0.5:
+    print('0')
+else:
+    print('1')
+   
+   
+-----------------------------------------------------------------------------------------------   
 class DynamicFontSizeLabel(MDLabel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

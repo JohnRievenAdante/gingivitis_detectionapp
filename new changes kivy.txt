@@ -1,0 +1,615 @@
+what i did so far:
+changed def capture in camerascreen
+added animation in displayprocessedimagescreen
+removed rotate image in kv but keep rotate in camerascreen
+added icon for swipe to see more in final screen
+(check if mainmenuscreen is the same)
+changed processscreen
+
+
+
+class DisplayProcessedImageScreen(Screen):
+    
+    def start(self, contourlength,prediction,filename):
+        predlbl = self.ids['predictlbl']
+        infolbl = self.ids['infolbl']
+        img = self.ids['dpimage']
+        carousel = self.ids['crsl']
+        img2 = self.ids['contourimg']
+        lbl = self.ids['contournumlbl']
+        swipelbl = self.ids['swipelbl']
+        arrowimg = self.ids['arrowimg']
+        animation = Animation(opacity=1, duration=1) + Animation(opacity=0, duration=1)
+        animation.repeat = True
+        animation.start(swipelbl)
+        animation.start(arrowimg)
+        
+        carousel.index = 0
+        img.source=filename
+        img.reload()
+        img2.source="contour_point_simple.jpg"
+        img2.reload()
+        if prediction=="1":
+            prd="Gingivitis"
+            infolbl.text="Gum diseases such as Gingivitis can lead to complications. Please visit your dentist whenever you can"
+        if prediction=="0":
+            prd="Healthy"
+            infolbl.text="Keep taking care of your teeth and gums!"
+        predlbl.text="The image is classified as: \n"+prd
+        lbl.text="There are "+contourlength+" contours found"
+    def switch_screen(self, *args):
+        self.manager.current = "mainmenu"
+
+class ProcessScreen(Screen):
+    
+    def getimg(self,filename):
+        self.filename=filename
+        self.img = self.ids['takenimg']
+        
+        self.img.source=filename
+        self.img.reload()
+    
+    def image_process(self,*args):
+        img2 = cv2.imread('img_taken.png')
+        img3 = cv2.resize(img2, (256,256))
+        ORANGE_MIN = np.array([5, 145, 94],np.uint8)
+        ORANGE_MAX = np.array([8, 255, 255],np.uint8)
+        hsv_img = cv2.cvtColor(img3,cv2.COLOR_BGR2HSV)
+        cv2.imwrite('res1.jpg', hsv_img)
+        
+
+        frame_threshed = cv2.inRange(hsv_img, ORANGE_MIN, ORANGE_MAX)
+        cv2.imwrite('res.jpg', frame_threshed)
+        
+
+        kernel = np.ones((10, 10), np.uint8)
+        closing = cv2.morphologyEx(frame_threshed, cv2.MORPH_CLOSE, kernel, iterations=1)
+        cv2.imwrite('res2.jpg', closing)
+        
+
+        contours, hierarchy = cv2.findContours(image=closing, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
+
+        image_copy = img3.copy()
+        self.contourlength=str(len(contours))
+
+        cv2.drawContours(image=image_copy, contours=contours, contourIdx=-1, color=(0, 255, 0), thickness=4, lineType=cv2.LINE_AA)
+                
+        cv2.imwrite('contour_point_simple.jpg', image_copy)
+
+        
+        image_features = self.create_features(closing)
+        
+        ok=image_features.reshape(1, -1)
+        #bees_stand = ss.fit_transform(ok)
+
+        #gum_pca = ss.fit_transform(bees_stand)
+        #loaded_model = pickle.load(open("finalized_model.pkl", 'rb'))
+        #print(closing)
+        #predict=loaded_model.predict(gum_pca)
+        """url = 'https://gingi-api.onrender.com/prediction'
+        signup_payload = dumps(
+            {"image":closing.tolist()})"""
+        
+        #try:
+        #self.request = UrlRequest(url=url,req_body=signup_payload, on_success=self.res(), ca_file=cfi.where(), verify=True)
+        #except Exception as e:
+            #Logger.error(e)
+        #payload = json.dumps(
+            #{
+                #"image":ok.tolist()
+            #}
+        #)
+        image_bytes=closing.tobytes()
+        #response = requests.post( "https://gingi-api.onrender.com/prediction", data=image_bytes)
+
+        #loaded_model = pickle.load(open("gingi_model.pkl", 'rb'))
+        #print(response.text)
+        """interpreter = tflite.Interpreter(model_path="model.tflite")
+        interpreter.allocate_tensors()
+
+        # Get information about the input and output tensors
+        input_details = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
+
+        # Prepare input data
+        input_shape = input_details[0]['shape']
+        input_data = np.array(np.random.random_sample(input_shape), dtype=np.float32)
+
+        # Set the input tensor
+        interpreter.set_tensor(input_details[0]['index'], input_data)
+
+        # Run inference
+        interpreter.invoke()
+
+        # Get the output tensor
+        output_data = interpreter.get_tensor(output_details[0]['index'])
+
+        # Interpret the results
+        prediction = np.argmax(output_data)
+        print("Prediction:", prediction)"""
+        predicts="1"
+        #predicts=loaded_model.predict(ok)
+        self.parent.get_screen('dpimage').start(self.contourlength,predicts,self.filename)
+        self.manager.current = "dpimage"
+        """
+        headers = {
+        'Content-Type': 'application/json'
+        }
+        try:
+            response = requests.request("POST", url, headers=headers, data=signup_payload)
+        except Exception as e:
+            Logger.error(e)
+        print(type(response))
+        print(type(response.text))
+        self.data = response.json()
+        ans = self.data
+        print(type(ans))
+        predict1=ans.get('transformed')
+        received=np.array(predict1)
+        loaded_model = pickle.load(open("finalized_model.pkl", 'rb'))
+        #print(closing)
+        try:
+            predicts=loaded_model.predict(received)
+        except Exception as e:
+            Logger.error(e)
+        self.parent.get_screen('dpimage').start(self.contourlength,predicts[0],self.filename)
+        self.manager.current = "dpimage"""
+    
+        
+
+    def res(self,*args):
+        self.data = self.request.result
+        ans = self.data
+        predict1=ans.get('transformed')
+        #predict1 = ans['transformed']
+        loaded_model = pickle.load(open("finalized_model.pkl", 'rb'))
+        #print(closing)
+        predicts=loaded_model.predict(predict1)
+
+        #print(self.request)
+        #self.data = self.request.result
+        #ans = self.data
+        #predict = ans['transformed']
+        #print(predict)
+        #self.parent.get_screen('dpimage').start(self.contourlength,predict,self.filename)
+        #self.manager.current = "dpimage"
+
+    def create_features(self,img):
+        color_features = img.flatten()
+        flat_features = np.hstack(color_features)
+        return flat_features
+
+    #retake
+    def switch_screen(self, *args):
+        
+        self.manager.current = "mainmenu"
+
+
+class CameraScreen(Screen):
+    def on_call(self):
+        
+        self.camera = self.ids['camera']
+        self.camera.play=True
+    def capture(self):
+        self.camera = self.ids['camera']
+        timestr = time.strftime("%Y%m%d_%H%M%S")
+
+        #take camera resolution and save image with that resolution
+        image_size = self.camera.texture_size
+        source=self.camera.export_to_png("img_taken.png",size=image_size)
+        
+        image = cv2.imread('img_taken.png', cv2.IMREAD_UNCHANGED)
+
+        # Get the alpha channel (transparency) from the image
+        alpha = image[:, :, 3]
+
+        # Find the non-transparent region in the image
+        coords = cv2.findNonZero(alpha)
+
+        # Get the bounding box of the non-transparent region
+        x, y, w, h = cv2.boundingRect(coords)
+
+        # Crop the image to remove the transparent background
+        cropped_image = image[y:y+h, x:x+w, :]
+
+        # Save the cropped image
+        cv2.imwrite('img_taken.png', cropped_image)
+
+        img2 = cv2.imread("img_taken.png")
+        img=cv2.rotate(img2, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        cv2.imwrite('img_taken.png', img)
+        self.camera.play=False
+        self.remove_widget(self.camera)
+        self.parent.get_screen('process').getimg("img_taken.png")
+        
+        self.manager.current = "process"
+    
+    
+    def switch_screen(self, *args):
+        self.manager.current = "mainmenu"
+
+
+
+
+<DisplayProcessedImageScreen>
+
+    canvas.before:
+        Color:
+            rgba:(39/255,199/255,215/255,1)
+            
+        Rectangle:
+            pos:self.pos
+            size:self.size
+    Image:
+        source:"asset/img/bg.jpg" 
+        allow_stretch: True 
+        keep_ratio: True 
+
+    MDBoxLayout:
+        orientation:'vertical'
+        size:self.width,self.height
+
+        MDBoxLayout:
+            padding: dp(10)
+            orientation:'vertical'
+
+            Carousel:
+                id:crsl
+                size_hint: 1, 1
+                padding: dp(10)
+                spacing: dp(10)
+                orientation: 'vertical'
+                
+                MDBoxLayout:
+                    orientation: 'vertical'
+                    padding:dp(10)
+
+                    MDCard:
+                        orientation: 'vertical'
+                        size_hint: 1, 1
+                        pos_hint: {"center_x": .5,"top": 1}
+                        md_bg_color:.7,0.7,0.7,.5
+                        padding:10
+                        
+                        MDBoxLayout:
+                            orientation: 'vertical'
+                            
+
+                            MDLabel:
+                                id:predictlbl
+                                
+                                color:(1,1,1,1)
+                                font_size:sp(30)
+
+                            BoxLayout:
+                                orientation: 'vertical'
+
+                                Image:
+                                    id:dpimage
+                                    adaptive_width:True
+                                    adaptive_height:True
+                                    pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+
+                        MDBoxLayout:
+                            orientation: 'vertical'
+                            padding:10
+
+                            DynamicFontSizeLabel:
+                                id:infolbl
+                                font_name:"Rob"
+                                color:(1,1,1,1)
+                                font_size:sp(10)
+
+                            DynamicFontSizeLabel:
+                                id:contournumlbl
+                                font_name:"Rob"
+                                color:(1,1,1,1)
+                                text:"You may see different factors to this diagnosis"
+                                font_size:0.1
+
+                            MDBoxLayout:
+                                orientation: 'horizontal'
+                                
+                                MDLabel:
+                                    size_hint_x: 0.8
+                                    id:swipelbl
+                                    text:"Swipe to see more"
+                                    color:1,1,1,1
+                                    font_size:sp(30)
+                                Image:
+                                    id:arrowimg
+                                    size_hint_x: 0.2
+                                    source:"asset/img/fast-forward.png"
+                        
+
+                MDBoxLayout:
+                    orientation: 'vertical'
+                    size_hint: 1,1
+                    padding:10
+
+                    MDCard:
+                        orientation: 'vertical'
+                        size_hint: 1, 1
+                        pos_hint: {"center_x": .5,"top": 1}
+                        md_bg_color:.7,0.7,0.7,.5
+                        padding:10
+
+                        MDBoxLayout:
+                            orientation: 'vertical'
+                            MDLabel:
+                                text:"Here is your processed image:"
+                                adaptive_height:True
+                                
+                                pos_hint:{'center_y':0.5,'right':1}
+                                color:(1,1,1,1)
+                                font_size:sp(30)
+
+                            MDBoxLayout:
+                                orientation: 'vertical'
+                                Image:
+                                    id:contourimg
+                                    
+                                    adaptive_width:True
+                                    adaptive_height:True
+                                    size_hint: 0.7, 0.7
+                                    pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+
+                        MDBoxLayout:
+                            orientation: 'vertical'
+
+                            DynamicFontSizeLabel:
+                                font_name:"Rob"
+                                text:"Used a 10x10 Matrix for Morphology"
+                                color:(1,1,1,1)
+                                font_size:sp(10)
+
+                            DynamicFontSizeLabel:
+                                font_name:"Rob"
+                                text:"Minimum Hue Saturation and Value: [5, 145, 94]"
+                                color:(1,1,1,1)
+                                font_size:sp(10)
+
+                            DynamicFontSizeLabel:
+                                font_name:"Rob"
+                                text:"Minimum Hue Saturation and Value: [8, 255, 255]"
+                                color:(1,1,1,1)
+                                font_size:sp(10)
+
+                            DynamicFontSizeLabel:
+                                font_name:"Rob"
+                                text:"Used a 10x10 Matrix for Morphology"
+                                color:(1,1,1,1)
+                                font_size:sp(10)
+
+                            DynamicFontSizeLabel:
+                                font_name:"Rob"
+                                id:contournumlbl
+                                color:(1,1,1,1)
+                                font_size:sp(10)
+
+                            DynamicFontSizeLabel:
+                                font_name:"Rob"
+                                color:(1,1,1,1)
+                                text:"Note: Contours are individual points connected to form the gingivitis area in an outline"
+                                font_size:sp(10)
+
+        MDBoxLayout:
+            size_hint_y:None
+            height:dp(80)
+            pos_hint:{'y':0,'center_x':0.5}
+            padding:dp(10)
+            adaptive_width:True
+
+            MDRectangleFlatButton:
+                id:againbtn
+                size_hint_x:1
+                #pos_hint:{'y':0,'center_x':0.5}
+                text: 'Try a different image'
+                font_name:"Montserrat"
+                font_size:"20sp"
+                text_color: (1,1,1,1)
+                line_color:(1,1,1,1)
+                opacity:1
+                on_release: root.switch_screen()
+    
+
+<ProcessScreen>
+    canvas.before:
+        Color:
+            rgba:(39/255,199/255,215/255,1)
+        Rectangle:
+            pos:self.pos
+            size:self.size
+    Image:
+        source:"asset/img/bg.jpg" 
+        allow_stretch: True 
+        keep_ratio: True 
+
+    BoxLayout:
+        orientation:"vertical"
+        size_hint: 1, 0.17
+        pos_hint: {"center_x": 0.5, "top": 1}
+        padding: "10dp"
+        MDCard:
+            orientation: 'vertical'
+            size_hint: 1, 1
+            pos_hint: {"center_x": .5,"top": 1}
+            md_bg_color:.7,0.7,0.7,.5
+            BoxLayout:
+                orientation: 'vertical'
+                MDLabel:
+                    text:"Use this Image?"
+                    adaptive_height:True
+                    pos_hint:{'center_x':0.5}
+                    color:(1,1,1,1)
+                    font_size:sp(40)
+
+    BoxLayout:
+        size_hint: 1, 0.45
+        pos_hint: {"center_x": .5, "top": 0.65}
+        orientation:"vertical"       
+        MDCard:
+            padding: "20dp"
+            orientation: 'vertical'
+            size_hint: 1, 1
+            pos_hint: {"center_x": .5,"center_y": .5}
+            md_bg_color:.7,0.7,0.7,.5
+
+            BoxLayout:
+                orientation: 'vertical'
+                Image:
+                    id:takenimg
+                    adaptive_width:True
+                    adaptive_height:True
+                    pos_hint: {'center_x': 0.5}
+
+                MDLabel:
+                    size_hint: None, None
+                    size: root.width,root.height
+                    text:"This will be processed and then predicted"
+                    adaptive_height:True
+                    adaptive_width:True
+                    pos_hint: {'center_x': 0.5}
+                    halign: 'center'  
+                    color:(1,1,1,1)
+                    font_size:sp(15)
+    BoxLayout:
+        orientation:'vertical'
+        size_hint_y:None
+        height:dp(80)
+        pos_hint:{'y':0,'center_x':0.5}
+        padding:dp(10)
+        spacing:dp(10)
+        adaptive_width:True
+                
+        MDFillRoundFlatButton:
+            id:howbtn
+            #size_hint:0.22,0.09
+            pos_hint:{'y':0,"center_x": .5}
+            text: 'Process this Image!'
+            font_name:"Montserrat"
+            font_size:"20sp"
+            md_bg_color: "white"
+            text_color:(39/255,199/255,215/255,1)
+            on_release: root.image_process()
+
+        MDRectangleFlatButton:
+            #id:againbtn
+            #size:100,100
+            pos_hint:{'center_x':0.5,'y':0}
+            text: 'Choose Another'
+            font_name:"Montserrat"
+            font_size:"20sp"
+            text_color: 1,1,1,1
+            line_color:1,1,1,1
+            opacity:1
+            on_release: root.switch_screen()
+
+
+
+
+<CameraScreen>
+    canvas.before:
+        Color:
+            rgba:(39/255,199/255,215/255,1)
+        Rectangle:
+            pos:self.pos
+            size:self.size
+    MDBoxLayout:
+        MDIconButton:
+            icon: "asset/img/camera.png"
+            icon_size: "70sp"
+            pos_hint:{"center_x": .7}
+            on_press: root.capture()
+    MDBoxLayout:
+        Camera:
+            id: camera
+            resolution: (640, 480)
+            allow_stretch: True
+            keep_ratio: True
+            play: True
+            canvas.before:
+                PushMatrix
+                Rotate:
+                    angle: -90
+                    origin: self.center
+            canvas.after:
+                PopMatrix
+
+
+
+
+<MainMenuScreen>
+    canvas.before:
+        Color:
+            rgba:(39/255,199/255,215/255,1)
+        Rectangle:
+            pos:self.pos
+            size:self.size
+    
+    MDFloatLayout:
+        Image:
+            source:"asset/img/icon.png"
+            size_hint:0.4,0.4
+            pos_hint:{"center_x": .5,"center_y": .8}
+        MDCard:
+            id:cambtn
+            size_hint: .8, .1
+            pos_hint: {"center_x": 1, "center_y": .58}
+            md_bg_color:.9,0.9,0.9,.5
+            MDBoxLayout:
+                padding:10
+                orientation:"horizontal"
+                size:root.width,root.height
+                Image:
+                    size_hint:0.05,1
+                    pos_hint:{"center_x": 0,"center_y": .5}
+                    source:"asset/img/camera2.png"
+                MDFillRoundFlatButton:
+                    padding:[10,0,0,0]
+                    size_hint:0.12,0.95
+                    pos_hint:{"center_x": .5,"center_y": .5}
+                    text: 'Camera'
+                    font_name:"Montserrat"
+                    font_size:"20sp"
+                    md_bg_color: "white"
+                    text_color:(39/255,199/255,215/255,1)
+                    opacity:1
+                    on_release: root.switch_screen()
+
+        MDCard:
+            id:gallerybtn
+            size_hint: .8, .1
+            pos_hint: {"center_x": 1, "center_y": .45}
+            md_bg_color:.9,0.9,0.9,.5
+            MDBoxLayout:
+                padding:10
+                orientation:"horizontal"
+                size:root.width,root.height
+                Image:
+                    size_hint:0.05,1
+                    pos_hint:{"center_x": 0,"center_y": .5}
+                    source:"asset/img/gallery.png"
+                MDFillRoundFlatButton:
+                    padding:[10,0,0,0]
+                    size_hint:0.12,0.95
+                    pos_hint:{"center_x": .5,"center_y": .5}
+                    text: 'Gallery'
+                    font_name:"Montserrat"
+                    font_size:"20sp"
+                    md_bg_color: "white"
+                    text_color:(39/255,199/255,215/255,1)
+                    opacity:1
+                    on_release: root.switch_screen2()
+
+        MDRoundFlatButton:
+            id:howbtn
+            size_hint:0.7,0.08
+            pos_hint:{"center_x": .5,"center_y": 0}
+            text: 'How to Use'
+            font_name:"Montserrat"
+            font_size:"20sp"
+            line_color:1,1,1,1
+            text_color:1,1,1,1
+            opacity:1
+            on_release: root.switch_screen3()
